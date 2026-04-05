@@ -4,6 +4,7 @@ const twilio = require('twilio');
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+const serviceSid = process.env.TWILIO_SERVICE_SID;
 
 if (!accountSid || !authToken || !fromNumber) {
   console.error('[TWILIO] ❌ ERROR: Missing Twilio credentials!');
@@ -14,6 +15,7 @@ if (!accountSid || !authToken || !fromNumber) {
   console.log('[TWILIO] ✅ Twilio credentials loaded');
   console.log('[TWILIO]   Account SID:', accountSid.substring(0, 10) + '...');
   console.log('[TWILIO]   From Number:', fromNumber);
+  console.log('[TWILIO]   Service SID:', serviceSid ? serviceSid.substring(0, 10) + '...' : '⚠️ Not set (optional)');
 }
 
 // Initialize Twilio client with your credentials
@@ -54,11 +56,18 @@ const makeReminderCall = async (toPhoneNumber, taskTitle, taskDescription) => {
       </Response>
     `;
 
-    const call = await client.calls.create({
+    const callOptions = {
       twiml: twimlMessage,
       to: toPhoneNumber,
       from: fromNumber
-    });
+    };
+
+    // Add Service SID if configured
+    if (serviceSid) {
+      callOptions.messagingServiceSid = serviceSid;
+    }
+
+    const call = await client.calls.create(callOptions);
 
     console.log(`[TWILIO] ✅ Call initiated - SID: ${call.sid} | To: ${toPhoneNumber} | Task: ${taskTitle}`);
     return call;
