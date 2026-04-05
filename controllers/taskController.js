@@ -55,7 +55,9 @@ exports.getTasksByUser = async (req, res) => {
     const tasks = await Task.find({ 
       assignedTo: req.params.userId,
       createdBy: req.user._id 
-    }).sort({ time: 1 });
+    })
+    .populate('assignedTo', 'name email phone')
+    .sort({ time: 1 });
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
