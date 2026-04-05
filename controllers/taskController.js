@@ -20,7 +20,8 @@ exports.createTask = async (req, res) => {
     });
 
     const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'name email phone');
+      .populate('assignedTo', 'name email phone')
+      .populate('createdBy', 'name email');
 
     res.status(201).json(populatedTask);
   } catch (error) {
@@ -36,9 +37,11 @@ exports.getTasks = async (req, res) => {
     if (req.user.role === 'admin') {
       tasks = await Task.find({ createdBy: req.user._id })
         .populate('assignedTo', 'name email phone')
+        .populate('createdBy', 'name email')
         .sort({ time: 1 });
     } else {
       tasks = await Task.find({ assignedTo: req.user._id })
+        .populate('assignedTo', 'name email phone')
         .populate('createdBy', 'name email')
         .sort({ time: 1 });
     }
@@ -57,6 +60,7 @@ exports.getTasksByUser = async (req, res) => {
       createdBy: req.user._id 
     })
     .populate('assignedTo', 'name email phone')
+    .populate('createdBy', 'name email')
     .sort({ time: 1 });
     res.json(tasks);
   } catch (error) {
@@ -82,7 +86,8 @@ exports.updateTask = async (req, res) => {
       req.params.id,
       req.body,
       { new: true }
-    ).populate('assignedTo', 'name email phone');
+    ).populate('assignedTo', 'name email phone')
+     .populate('createdBy', 'name email');
 
     res.json(updatedTask);
   } catch (error) {
