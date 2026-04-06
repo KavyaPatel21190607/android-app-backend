@@ -199,6 +199,7 @@ exports.getCallStatusAll = async (req, res) => {
         assignedTo: task.assignedTo,
         callStatus: task.callStatus,
         callAttempts: task.callAttempts,
+        totalMissedCalls: task.totalMissedCalls || 0,
         callSessionActive: task.callSessionActive,
         nextCallAt: task.nextCallAt,
         timeRemainingMs: timeRemainingMs,
@@ -209,6 +210,72 @@ exports.getCallStatusAll = async (req, res) => {
     });
 
     res.json(callStatusList);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get full call history for all tasks (Admin only)
+// @route   GET /api/tasks/call-history
+exports.getCallHistory = async (req, res) => {
+  try {
+    const tasks = await Task.find({ 
+      createdBy: req.user._id,
+      callAttempts: { $gt: 0 } // Only tasks that have had at least one call
+    })
+    .populate('assignedTo', 'name email phone')
+    .sort({ lastCallAt: -1 });
+
+    let grandTotalMissed = 0;
+    let grandTotalCalls = 0;
+
+    const history = tasks.map(task => {
+      const totalMissed = task.totalMissedCalls || 0;
+      const totalCalls = task.callAttempts || 0;
+      grandTotalMissed += totalMissed;
+      grandTotalCalls += totalCalls;
+
+      // Format call history entries with readable dates
+      const formattedHistory = (task.callHistory || []).map(entry => {
+        const calledAt = new Date(entry.calledAt);
+        // Convert to IST for display
+        const istDate = new Date(calledAt.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+        const dateStr = istDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const timeStr = istDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+        return {
+          attemptNumber: entry.attemptNumber,
+          status: entry.status,
+          calledAt: entry.calledAt,
+          dateFormatted: dateStr,
+          timeFormatted: timeStr,
+          duration: entry.duration,
+          wasPickedUp: entry.duration > 0 && (entry.status === 'completed' || entry.status === 'in-progress')
+        };
+      });
+
+      return {
+        _id: task._id,
+        title: task.title,
+        time: task.time,
+        days: task.days,
+        assignedTo: task.assignedTo,
+        callStatus: task.callStatus,
+        callAttempts: totalCalls,
+        totalMissedCalls: totalMissed,
+        callSessionActive: task.callSessionActive,
+        lastCallAt: task.lastCallAt,
+        wasPickedUp: task.callStatus === 'completed',
+        callHistory: formattedHistory
+      };
+    });
+
+    res.json({
+      grandTotalMissed,
+      grandTotalCalls,
+      tasksWithCalls: history.length,
+      history
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
