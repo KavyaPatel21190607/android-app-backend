@@ -22,9 +22,9 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'Please fill all fields' });
     }
 
-    // Phone is required only for users (they receive calls)
-    if (role === 'user' && !phone) {
-      return res.status(400).json({ message: 'Phone number is required for users' });
+    // Phone is required for ALL roles (users get reminder calls, admins get notification calls)
+    if (!phone) {
+      return res.status(400).json({ message: 'Phone number is required for all accounts' });
     }
 
     if (password.length < 6) {
