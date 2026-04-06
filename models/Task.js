@@ -50,6 +50,10 @@ const taskSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  totalMissedCalls: {
+    type: Number,
+    default: 0
+  },
   callStatus: {
     type: String,
     enum: ['idle', 'ringing', 'missed', 'completed'],
