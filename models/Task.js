@@ -1,5 +1,13 @@
 const mongoose = require('mongoose');
 
+const callHistorySchema = new mongoose.Schema({
+  callSid: { type: String },
+  status: { type: String, enum: ['initiated', 'ringing', 'in-progress', 'completed', 'no-answer', 'busy', 'failed', 'canceled'] },
+  attemptNumber: { type: Number },
+  calledAt: { type: Date, default: Date.now },
+  duration: { type: Number, default: 0 }
+}, { _id: false });
+
 const taskSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -37,6 +45,32 @@ const taskSchema = new mongoose.Schema({
   lastCallAt: {
     type: Date
   },
+  // ===== V2: Call Tracking Fields =====
+  callAttempts: {
+    type: Number,
+    default: 0
+  },
+  callStatus: {
+    type: String,
+    enum: ['idle', 'ringing', 'missed', 'completed'],
+    default: 'idle'
+  },
+  callSessionActive: {
+    type: Boolean,
+    default: false
+  },
+  lastCallSid: {
+    type: String,
+    default: ''
+  },
+  nextCallAt: {
+    type: Date
+  },
+  adminNotifiedAt: {
+    type: Date
+  },
+  callHistory: [callHistorySchema],
+  // ===================================
   createdAt: {
     type: Date,
     default: Date.now
