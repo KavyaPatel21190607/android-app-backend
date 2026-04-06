@@ -107,3 +107,61 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// @desc    Update logged-in user's profile
+// @route   PUT /api/auth/profile
+// Allowed: name, email, phone, password
+// NOT allowed: role, pairCode
+exports.updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const { name, email, phone, password } = req.body;
+
+    // Update name
+    if (name && name.trim()) {
+      user.name = name.trim();
+    }
+
+    // Update email (check for duplicates)
+    if (email && email.trim() && email.trim().toLowerCase() !== user.email) {
+      const emailExists = await User.findOne({ email: email.trim().toLowerCase() });
+      if (emailExists) {
+        return res.status(400).json({ message: 'Email already in use by another account' });
+      }
+      user.email = email.trim().toLowerCase();
+    }
+
+    // Update phone
+    if (phone !== undefined) {
+      user.phone = phone.trim();
+    }
+
+    // Update password (will be auto-hashed by pre-save hook)
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters' });
+      }
+      user.password = password;
+    }
+
+    await user.save();
+
+    // Return updated user (without password)
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      pairCode: user.pairCode,
+      message: 'Profile updated successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
