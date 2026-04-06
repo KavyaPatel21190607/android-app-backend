@@ -68,6 +68,7 @@ exports.handleCallStatus = async (req, res) => {
         } else {
           // Completed with 0 duration = voicemail or no actual conversation
           task.callStatus = 'missed';
+          task.totalMissedCalls = (task.totalMissedCalls || 0) + 1;
           if (task.callAttempts < 10) { // Max 10 retries
             task.nextCallAt = new Date(Date.now() + 2 * 60 * 1000); // Retry in 2 minutes
             console.log(`[CALL-STATUS] ⚠️ Call completed with 0 duration for "${task.title}" — retry in 2 min`);
@@ -81,6 +82,7 @@ exports.handleCallStatus = async (req, res) => {
       case 'no-answer':
       case 'busy':
         task.callStatus = 'missed';
+        task.totalMissedCalls = (task.totalMissedCalls || 0) + 1;
         if (task.callAttempts < 10) { // Max 10 retries
           task.nextCallAt = new Date(Date.now() + 2 * 60 * 1000); // Retry in 2 minutes
           console.log(`[CALL-STATUS] ❌ User NOT ANSWERED for "${task.title}" — retry #${task.callAttempts + 1} in 2 min`);
