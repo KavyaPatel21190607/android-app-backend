@@ -127,6 +127,14 @@ exports.toggleTask = async (req, res) => {
     }
 
     task.isActive = !task.isActive;
+    
+    // If deactivating, also stop any active call session
+    if (!task.isActive) {
+      task.callSessionActive = false;
+      task.callStatus = 'idle';
+      task.nextCallAt = null;
+    }
+    
     await task.save();
 
     res.json(task);
@@ -134,3 +142,83 @@ exports.toggleTask = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// @desc    Get call status for a specific task (Admin only)
+// @route   GET /api/tasks/:id/call-status
+exports.getCallStatus = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id)
+      .populate('assignedTo', 'name email phone');
+
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    // Calculate time remaining for next call
+    let timeRemainingMs = 0;
+    if (task.callSessionActive && task.nextCallAt) {
+      timeRemainingMs = Math.max(0, new Date(task.nextCallAt).getTime() - Date.now());
+    }
+
+    res.json({
+      _id: task._id,
+      title: task.title,
+      assignedTo: task.assignedTo,
+      callStatus: task.callStatus,
+      callAttempts: task.callAttempts,
+      callSessionActive: task.callSessionActive,
+      nextCallAt: task.nextCallAt,
+      timeRemainingMs: timeRemainingMs,
+      timeRemainingFormatted: formatTimeRemaining(timeRemainingMs),
+      lastCallAt: task.lastCallAt,
+      callHistory: task.callHistory
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get call status for ALL tasks of this admin
+// @route   GET /api/tasks/call-status/all
+exports.getCallStatusAll = async (req, res) => {
+  try {
+    const tasks = await Task.find({ createdBy: req.user._id })
+      .populate('assignedTo', 'name email phone')
+      .sort({ time: 1 });
+
+    const callStatusList = tasks.map(task => {
+      let timeRemainingMs = 0;
+      if (task.callSessionActive && task.nextCallAt) {
+        timeRemainingMs = Math.max(0, new Date(task.nextCallAt).getTime() - Date.now());
+      }
+
+      return {
+        _id: task._id,
+        title: task.title,
+        time: task.time,
+        assignedTo: task.assignedTo,
+        callStatus: task.callStatus,
+        callAttempts: task.callAttempts,
+        callSessionActive: task.callSessionActive,
+        nextCallAt: task.nextCallAt,
+        timeRemainingMs: timeRemainingMs,
+        timeRemainingFormatted: formatTimeRemaining(timeRemainingMs),
+        lastCallAt: task.lastCallAt,
+        isActive: task.isActive
+      };
+    });
+
+    res.json(callStatusList);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Helper: Format milliseconds to MM:SS
+function formatTimeRemaining(ms) {
+  if (ms <= 0) return '0:00';
+  const totalSeconds = Math.ceil(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
