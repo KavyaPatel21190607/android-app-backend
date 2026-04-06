@@ -3,7 +3,7 @@ const router = express.Router();
 const { 
   createTask, getTasks, getTasksByUser, 
   updateTask, deleteTask, toggleTask,
-  getCallStatus, getCallStatusAll
+  getCallStatus, getCallStatusAll, getCallHistory
 } = require('../controllers/taskController');
 const { protect, adminOnly } = require('../middleware/auth');
 
@@ -16,6 +16,10 @@ router.get('/', protect, getTasks);
 // GET /api/tasks/call-status/all - Get call status for all admin's tasks
 // ⚠️ Must be BEFORE /:id routes to avoid conflict
 router.get('/call-status/all', protect, adminOnly, getCallStatusAll);
+
+// GET /api/tasks/call-history - Full call history for admin dashboard
+// ⚠️ Must be BEFORE /:id routes to avoid conflict
+router.get('/call-history', protect, adminOnly, getCallHistory);
 
 // GET /api/tasks/user/:userId - Get tasks for specific user (Admin only)
 router.get('/user/:userId', protect, adminOnly, getTasksByUser);
