@@ -34,6 +34,10 @@ exports.createTask = async (req, res) => {
 exports.getTasks = async (req, res) => {
   try {
     let tasks;
+    // Get today's date string for completion daily reset
+    const todayIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const todayStr = todayIST.toISOString().split('T')[0];
+
     if (req.user.role === 'admin') {
       tasks = await Task.find({ createdBy: req.user._id })
         .populate('assignedTo', 'name email phone')
@@ -45,7 +49,19 @@ exports.getTasks = async (req, res) => {
         .populate('createdBy', 'name email')
         .sort({ time: 1 });
     }
-    res.json(tasks);
+
+    // V3: Auto-reset completion if it's a new day
+    const tasksJson = tasks.map(t => {
+      const taskObj = t.toObject();
+      if (taskObj.completedByUser && taskObj.lastCompletionDate !== todayStr) {
+        taskObj.completedByUser = false;
+        taskObj.completedAt = null;
+        taskObj.completionNote = '';
+      }
+      return taskObj;
+    });
+
+    res.json(tasksJson);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -186,11 +202,18 @@ exports.getCallStatusAll = async (req, res) => {
       .populate('assignedTo', 'name email phone')
       .sort({ time: 1 });
 
+    // Get today's date for completion check
+    const todayIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const todayStr = todayIST.toISOString().split('T')[0];
+
     const callStatusList = tasks.map(task => {
       let timeRemainingMs = 0;
       if (task.callSessionActive && task.nextCallAt) {
         timeRemainingMs = Math.max(0, new Date(task.nextCallAt).getTime() - Date.now());
       }
+
+      // Auto-reset if completion is from a previous day
+      const isCompletedToday = task.completedByUser && task.lastCompletionDate === todayStr;
 
       return {
         _id: task._id,
@@ -205,7 +228,11 @@ exports.getCallStatusAll = async (req, res) => {
         timeRemainingMs: timeRemainingMs,
         timeRemainingFormatted: formatTimeRemaining(timeRemainingMs),
         lastCallAt: task.lastCallAt,
-        isActive: task.isActive
+        isActive: task.isActive,
+        // V3: Completion data
+        completedByUser: isCompletedToday,
+        completedAt: isCompletedToday ? task.completedAt : null,
+        completionNote: isCompletedToday ? task.completionNote : ''
       };
     });
 
@@ -276,6 +303,53 @@ exports.getCallHistory = async (req, res) => {
       tasksWithCalls: history.length,
       history
     });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+// @desc    Mark task as completed/uncompleted by user
+// @route   PATCH /api/tasks/:id/complete
+exports.markTaskComplete = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    // Verify the requesting user is the one assigned to the task
+    if (task.assignedTo.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the assigned user can mark this task as completed' });
+    }
+
+    // Get today's date string (IST)
+    const todayIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const todayStr = todayIST.toISOString().split('T')[0];
+
+    // Toggle completion
+    const isCurrentlyCompleted = task.completedByUser && task.lastCompletionDate === todayStr;
+    
+    if (isCurrentlyCompleted) {
+      // Un-complete (toggle off)
+      task.completedByUser = false;
+      task.completedAt = null;
+      task.completionNote = '';
+      task.lastCompletionDate = '';
+    } else {
+      // Mark as completed
+      task.completedByUser = true;
+      task.completedAt = new Date();
+      task.completionNote = req.body.note || '';
+      task.lastCompletionDate = todayStr;
+    }
+
+    await task.save();
+
+    const populatedTask = await Task.findById(task._id)
+      .populate('assignedTo', 'name email phone')
+      .populate('createdBy', 'name email');
+
+    res.json(populatedTask);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
