@@ -24,6 +24,7 @@ app.use(express.urlencoded({ extended: true })); // For Twilio form-encoded call
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tasks', require('./routes/taskRoutes'));
 app.use('/api/pair', require('./routes/pairRoutes'));
+app.use('/api/translate', require('./routes/translateRoutes'));
 
 // Twilio Call Status Webhook (public - no auth, Twilio sends POST with form data)
 app.post('/api/call-status', handleCallStatus);
@@ -38,15 +39,17 @@ app.get('/', (req, res) => {
   
   res.json({ 
     message: 'TaskMaster API is running!',
-    version: '2.0.0',
+    version: '3.0.0',
     serverTime_IST: `${hours}:${minutes} ${days[now.getDay()]}`,
     features: {
-      v2: 'Persistent call retry | Admin call notifications | Profile editing'
+      v2: 'Persistent call retry | Admin call notifications | Profile editing',
+      v3: 'Task completion marking | Multi-language support | UI/UX overhaul'
     },
     endpoints: {
       auth: '/api/auth',
       tasks: '/api/tasks',
       pair: '/api/pair',
+      translate: '/api/translate',
       callStatus: '/api/call-status (Twilio webhook)',
       testCall: '/api/test-call (GET - test Twilio)',
       checkScheduler: '/api/check-tasks (GET - see due tasks)'
@@ -155,9 +158,9 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log('='.repeat(50));
-  console.log(`TaskMaster Server V2.0 running on port ${PORT}`);
+  console.log(`TaskMaster Server V3.0 running on port ${PORT}`);
   console.log(`Visit: http://localhost:${PORT}`);
-  console.log('Features: Persistent retry | Admin calls | Profile edit');
+  console.log('Features: Task completion | Multi-language | UI/UX uplift');
   console.log('='.repeat(50));
   
   // Start the task reminder scheduler
