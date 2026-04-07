@@ -75,6 +75,23 @@ const taskSchema = new mongoose.Schema({
   },
   callHistory: [callHistorySchema],
   // ===================================
+  // ===== V3: Task Completion Fields =====
+  completedByUser: {
+    type: Boolean,
+    default: false
+  },
+  completedAt: {
+    type: Date
+  },
+  completionNote: {
+    type: String,
+    default: ''
+  },
+  lastCompletionDate: {
+    type: String,  // "YYYY-MM-DD" — tracks which day's completion this is for (resets daily)
+    default: ''
+  },
+  // ======================================
   createdAt: {
     type: Date,
     default: Date.now
