@@ -3,7 +3,8 @@ const router = express.Router();
 const { 
   createTask, getTasks, getTasksByUser, 
   updateTask, deleteTask, toggleTask,
-  getCallStatus, getCallStatusAll, getCallHistory
+  getCallStatus, getCallStatusAll, getCallHistory,
+  markTaskComplete
 } = require('../controllers/taskController');
 const { protect, adminOnly } = require('../middleware/auth');
 
@@ -35,5 +36,8 @@ router.delete('/:id', protect, adminOnly, deleteTask);
 
 // PATCH /api/tasks/:id/toggle - Toggle active/inactive (Admin only)
 router.patch('/:id/toggle', protect, adminOnly, toggleTask);
+
+// V3: PATCH /api/tasks/:id/complete - User marks task as completed/uncompleted
+router.patch('/:id/complete', protect, markTaskComplete);
 
 module.exports = router;
